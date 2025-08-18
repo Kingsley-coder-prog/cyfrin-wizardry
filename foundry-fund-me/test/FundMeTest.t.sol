@@ -13,6 +13,8 @@ contract FundMeTest is Test {
     uint256 constant SEND_VALUE = 0.1 ether;
     uint256 constant STARTING_BALANCE = 10 ether;
 
+    // uint256 constant GAS_PRICE = 1;
+
     function setUp() external {
         // fundMe = new FundMe(0x694AA1769357215DE4FAC081bf1f309aDC325306);
         DeployFundMe deployFundMe = new DeployFundMe();
@@ -75,8 +77,15 @@ contract FundMeTest is Test {
         uint256 startingFundMeBalance = address(fundMe).balance;
 
         // Act
+        // uint256 gasStart = gasleft();
+        // console.log("Gas from start: ", gasStart);
+        // vm.txGasPrice(GAS_PRICE);
         vm.prank(fundMe.getOwner());
         fundMe.withdraw();
+
+        // uint256 gasEnd = gasleft();
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice;
+        // console.log("Gas used in withdraw:", gasUsed);
 
         // Assert
         uint256 endingOwnerBalance = fundMe.getOwner().balance;
