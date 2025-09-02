@@ -111,4 +111,8 @@ contract RaffleTest is Test {
         // Assert
         assert(!upkeepNeeded);
     }
+
+    // Challenge
+    // testCheckUpkeepReturnsFalseIfEnoughTimeHasPassed
+    // testCheckUpkeepReturnsTrueWhenParametersAreGood
 }
