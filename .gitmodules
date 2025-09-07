@@ -23,8 +23,7 @@
 	url = https://github.com/cyfrin/foundry-devops
 [submodule "foundry-erc20/lib/forge-std"]
 	path = foundry-erc20/lib/forge-std
-<<<<<<< HEAD
+
 [submodule "foundry-erc20/lib/openzeppelin-contracts"]
 	path = foundry-erc20/lib/openzeppelin-contracts
-=======
->>>>>>> refs/remotes/origin/master
+
