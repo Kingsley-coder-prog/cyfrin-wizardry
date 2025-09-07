@@ -21,3 +21,5 @@
 [submodule "foundry-smart-contract-lottery/raffle-project/lib/foundry-devops"]
 	path = foundry-smart-contract-lottery/raffle-project/lib/foundry-devops
 	url = https://github.com/cyfrin/foundry-devops
+[submodule "foundry-erc20/lib/forge-std"]
+	path = foundry-erc20/lib/forge-std

@@ -13,7 +13,7 @@ contract ManualToken {
     }
 
     function decimals() public pure returns (uint8) {
-        return 18;
+        return 18; // 1 ether = 10^18 wei
     }
 
     function balanceOf(address _owner) public view returns (uint256) {
