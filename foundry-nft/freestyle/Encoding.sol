@@ -34,7 +34,7 @@ contract Encoding {
 
     function multiEncode() public pure returns (bytes memory) {
         bytes memory someString = abi.encode("some string", "It's a bigger");
-        return someString;
+        return someString; // dynamic types are encoded with their lengths
     }
 
     function multiDecode() public pure returns (string memory, string memory) {
