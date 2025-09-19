@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: MIT
+
+// This is considered an Exogenous, Decentralized, Anchored (pegged), Crypto Collateralized low volitility coin
+
+// Layout of Contract:
+// version
+// imports
+// interfaces, libraries, contracts
+// errors
+// Type declarations
+// State variables
+// Events
+// Modifiers
+// Functions
+
+// Layout of Functions:
+// constructor
+// receive function (if exists)
+// fallback function (if exists)
+// external
+// public
+// internal
+// private
+// view & pure functions
+
+pragma solidity ^0.8.18;
+
+import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title DecentralizedStableCoin
+ * @author Ifeanyi Nwankwo
+ * Collateral: Exogenous (ETH & BTC)
+ * Minting: Algorithmic
+ * Relative Stability: Pegged to USD
+ *
+ * This is the contract meant to be governed by DSCEngine. This contract is just the ERC20 implementation of our stablecoin system.
+ */
+
+contract DecentralizedStableCoin is ERC20Burnable, Ownable {
+    error DecentralizedStableCoin__MustBeMoreThanZero();
+    error DecentralizedStableCoin__BurnAmountExceedsBalance();
+    error DecentralizedStableCoin__NotZeroAddress();
+
+    /////////////////
+    // Constructor //
+    /////////////////
+
+    constructor() ERC20("DecentralizedStableCoin", "DSC") Ownable(msg.sender) {
+        // we want our stable coin to have 18 decimal places like ETH and most other tokens
+        // this is default for openzeppelin ERC20, so no need to write code for it
+    }
+
+    //////////////////////
+    // External Functions//
+    //////////////////////
+
+    function burn(uint256 _amount) public override onlyOwner {
+        uint256 balance = balanceOf(msg.sender);
+        if (_amount <= 0) {
+            revert DecentralizedStableCoin__MustBeMoreThanZero();
+        }
+        if (balance < _amount) {
+            revert DecentralizedStableCoin__BurnAmountExceedsBalance();
+        }
+        super.burn(_amount);
+    }
+
+    /**
+     * @notice Mints new DSC to a specified address
+     * @param _to The address to mint DSC to
+     * @param _amount The amount of DSC to mint
+     * @dev Only callable by the DSCEngine contract
+     */
+    function mint(
+        address _to,
+        uint256 _amount
+    ) external onlyOwner returns (bool) {
+        if (_to == address(0)) {
+            revert DecentralizedStableCoin__NotZeroAddress();
+        }
+        if (_amount <= 0) {
+            revert DecentralizedStableCoin__MustBeMoreThanZero();
+        }
+        _mint(_to, _amount);
+        return true;
+    }
+}
