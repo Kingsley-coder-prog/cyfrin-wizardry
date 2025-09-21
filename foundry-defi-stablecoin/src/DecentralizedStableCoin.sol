@@ -38,6 +38,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * This is the contract meant to be governed by DSCEngine. This contract is just the ERC20 implementation of our stablecoin system.
  */
 contract DecentralizedStableCoin is ERC20Burnable, Ownable {
+    /////////////////
+    // Errors //
+    /////////////////
     error DecentralizedStableCoin__MustBeMoreThanZero();
     error DecentralizedStableCoin__BurnAmountExceedsBalance();
     error DecentralizedStableCoin__NotZeroAddress();
