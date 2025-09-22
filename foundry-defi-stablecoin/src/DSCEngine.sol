@@ -60,6 +60,7 @@ contract DSCEngine is ReentrancyGuard {
     /////////////////
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => uint256 amountDscMinted) private s_DSCMinted;
 
     DecentralizedStableCoin private immutable i_dsc; // set data to immutable
 
@@ -128,11 +129,47 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    function mintDsc() external {}
+    /*  
+    * @notice follows CEI
+    * @param amountDscToMint The amount of decentralized stablecoin to mint
+    * @notice they must have more collateral value than the minimum threshold
+    */
+    function mintDsc(uint256 amountDscToMint) external moreThanZero(amountDscToMint) nonReentrant {
+        s_DSCMinted[msg.sender] += amountDscToMint;
+        // if they minted too much ($150 DSC, $100 ETH)
+        revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function burnDsc() external {}
 
     function liquidate() external {}
 
     function getHealthFactor() external view {}
+
+    ////////////////////////////////////////
+    // Private & Internal View Functions  //
+    ////////////////////////////////////////
+    function _getAccountInformation(address user) private view returns (uint256 totalDscMinted, uint256 collateralValueInUsd) {
+        totalDscMinted = s_DSCMinted[user];
+        collateralvalueInUsd = getAccountCollateralValue(user);
+    }
+
+    /* 
+    * Returns how close to liquidation a user is
+    * If a user goes below 1, then they can get liquidated
+    */
+    function _healthFactor(address user) private view returns (uint256) {
+        // total DSC minted
+        // total collateral VALUE
+        (uint256 totalDscMinted, uint256 collateralvalueInUsd) = _getAccountInformation(user);
+    }
+
+    function _revertIfHealthFactorIsBroken(address user) internal view {
+        // 1. Check health factor (do they have enough collateral?)
+        // 2. Revert if they don't
+    }
+
+    ////////////////////////////////////////
+    // Public & External View Functions  //
+    ////////////////////////////////////////
 }
