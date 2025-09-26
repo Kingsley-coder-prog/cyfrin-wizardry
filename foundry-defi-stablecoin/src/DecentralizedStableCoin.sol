@@ -49,7 +49,7 @@ contract DecentralizedStableCoin is ERC20Burnable, Ownable {
     // Constructor //
     /////////////////
 
-    constructor() ERC20("DecentralizedStableCoin", "DSC") Ownable(msg.sender) {
+    constructor() ERC20("DecentralizedStableCoin", "DSC") {
         // we want our stable coin to have 18 decimal places like ETH and most other tokens
         // this is default for openzeppelin ERC20, so no need to write code for it
     }
