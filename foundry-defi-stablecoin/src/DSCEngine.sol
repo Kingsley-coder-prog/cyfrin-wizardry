@@ -80,6 +80,7 @@ contract DSCEngine is ReentrancyGuard {
     // Events      //
     /////////////////
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralRedeemed(address indexed user, uint256 indexed amount, address indexed token);
 
     /////////////////
     // Modifiers  //
@@ -148,9 +149,32 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateralForDsc() external {}
+    /*
+    * @param tokenCollateralAddress The collateral address to redeem
+    * @param amountCollateral The amount of collateral to redeem
+    * @param amountDscToBurn The amount of DSC to burn
+    * This function burn DSC and redeems collateral in one transaction
+    */
+    function redeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn) external  {
+        burnDsc(amountDscToBurn);
+        redeemCollateral(tokenCollateralAddress, amountCollateral);
+        // redeemCollateral will revert if they don't have enough collateral i.e it already checks for health factor
+    }
 
-    function redeemCollateral() external {}
+    // In order to redeem collateral:
+    // 1. health factor must be over 1 AFTER collateral pulled
+    // DRY: Don't Repeat Yourself
+    // CEI: Checks-Effects-Interactions Pattern
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral) public moreThanZero(amountCollateral) nonReentrant {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralRedeemed(msg.sender, amountCollateral, tokenCollateralAddress);
+        // _calculateHealthFactorAfter()
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     /*  
     * @notice follows CEI
@@ -167,7 +191,15 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function burnDsc() external {}
+    function burnDsc(uint256 amount) public moreThanZero(amount) {
+        s_DSCMinted[msg.sender] -= amount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), amount);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+        i_dsc.burn(amount);
+        _revertIfHealthFactorIsBroken(msg.sender); // This may never hit...
+    }
 
     function liquidate() external {}
 
