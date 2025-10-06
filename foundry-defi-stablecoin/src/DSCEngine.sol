@@ -235,6 +235,24 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     function getHealthFactor() external view {}
+    //     /**
+    //  * @notice Returns the health factor for the caller (msg.sender).
+    //  * @dev Health factor is returned in fixed-point with `PRECISION` (1e18) scale.
+    //  *      If the user has zero debt, this returns type(uint256).max (treated as "infinite").
+    //  */
+    // function getHealthFactor() external view returns (uint256) {
+    //     return _healthFactor(msg.sender);
+    // }
+
+    // /**
+    //  * @notice Returns the health factor for an arbitrary user address.
+    //  * @param user The address to query.
+    //  * @dev Same semantics as getHealthFactor() — returns type(uint256).max when no debt.
+    //  */
+    // function getHealthFactorOf(address user) external view returns (uint256) {
+    //     return _healthFactor(user);
+    // }
+
 
     ////////////////////////////////////////
     // Private & Internal View Functions  //
@@ -275,6 +293,10 @@ contract DSCEngine is ReentrancyGuard {
         // total DSC minted
         // total collateral VALUE
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+        if (totalDscMinted == 0) {
+            // No debt, so health factor is infinite
+            return type(uint256).max;
+        }
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold *  PRECISION) / totalDscMinted;
         // 1000 ETH * 50 = 50,000 / 100 = 500
@@ -327,5 +349,9 @@ contract DSCEngine is ReentrancyGuard {
         // 1 ETH = $1000
         // The returned value from CL will be 1000 * 1e8
         return ((uint256(price)*ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
+    }
+
+    function getAccountInformation(address user) external view returns (uint256 totalDscMinted, uint256 collateralValueInUsd) {
+        (totalDscMinted, collateralValueInUsd) = _getAccountInformation(user);
     }
 }
