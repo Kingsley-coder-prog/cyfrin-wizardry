@@ -8,6 +8,7 @@ import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -19,6 +20,7 @@ contract DSCEngineTest is Test {
     address weth;
 
     address public USER = makeAddr("user");
+    address public LIQUIDATOR = makeAddr("liquidator");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
 
@@ -48,7 +50,7 @@ contract DSCEngineTest is Test {
     /////////////////
     // Price Tests///
     /////////////////
-    function testGetUsdValue() public {
+    function testGetUsdValue() public view {
         uint256 ethAmount = 15e18;
         // 15e18 * 2000/ETH = 30,000e18;
         uint256 expectedUsd = 30000e18;
@@ -56,7 +58,7 @@ contract DSCEngineTest is Test {
         assertEq(expectedUsd, actualUsd);
     }
 
-    function testGetTokenAmountFromUsd() public {
+    function testGetTokenAmountFromUsd() public view {
         uint256 usdAmount = 100 ether; // 100e18
         // $2,000 / ETH, $100
         uint256 expectedWeth = 0.05 ether;
@@ -208,5 +210,265 @@ contract DSCEngineTest is Test {
         assertEq(totalDscMinted, 0);
     }
 
+    // New Tests
+    function testHealthFactorExactThreshold() public depositedCollateral {
+        uint256 mintAmount = 10000e18; // exactly safe limit
+        vm.startPrank(USER);
+        dsce.mintDsc(mintAmount);
+        uint256 health = dsce.getHealthFactor();
+        assertEq(health, 1e18); // exactly at min
+    }
 
+    function testCanMintLessThanAllowed() public depositedCollateral {
+        uint256 mintAmount = 5000e18; // under safe limit
+        vm.startPrank(USER);
+        dsce.mintDsc(mintAmount);
+        uint256 health = dsce.getHealthFactor();
+        assertGt(health, 1e18);
+    }
+
+    function testCannotMintIfNoCollateral() public {
+        vm.startPrank(USER);
+        vm.expectRevert(DSCEngine.DSCEngine__BreaksHealthFactor.selector, 0);
+        dsce.mintDsc(1000e18);
+        vm.stopPrank();
+    }
+
+    /////////////////////////////
+    // 🔥 NEW TESTS ADDED     ///
+    /////////////////////////////
+
+    // (1) Reverts if minting zero
+    function testRevertsIfMintAmountZero() public depositedCollateral {
+        vm.startPrank(USER);
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.mintDsc(0);
+        vm.stopPrank();
+    }
+
+    // (2) Reverts if burning more DSC than minted
+    function testRevertsIfBurnMoreThanMinted() public depositedCollateral {
+        uint256 mintAmount = 1000e18;
+        vm.startPrank(USER);
+        dsce.mintDsc(mintAmount);
+        dsc.approve(address(dsce), 2000e18);
+        vm.expectRevert();
+        dsce.burnDsc(2000e18);
+        vm.stopPrank();
+    }
+
+    // (3) Event emitted on deposit
+    function testEmitsEventOnDeposit() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        vm.expectEmit(true, true, false, true);
+        emit DSCEngine.CollateralDeposited(USER, weth, AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    // (4) Health factor increases when collateral added
+    function testHealthFactorImprovesAfterMoreCollateral() public depositedCollateral {
+        vm.startPrank(USER);
+        dsce.mintDsc(5000e18);
+        uint256 beforeHealth = dsce.getHealthFactor();
+
+        ERC20Mock(weth).mint(USER, 5 ether);
+        ERC20Mock(weth).approve(address(dsce), 5 ether);
+        dsce.depositCollateral(weth, 5 ether);
+        uint256 afterHealth = dsce.getHealthFactor();
+        assertGt(afterHealth, beforeHealth);
+        vm.stopPrank();
+    }
+
+    // (5) Reverts if redeeming more collateral than owned
+    function testRevertsIfRedeemMoreThanDeposited() public depositedCollateral {
+        vm.startPrank(USER);
+        vm.expectRevert();
+        dsce.redeemCollateral(weth, 100 ether);
+        vm.stopPrank();
+    }
+
+    // (6) Total collateral value in USD matches expected
+    function testCollateralValueInUsd() public depositedCollateral {
+        ( , uint256 collateralValueInUsd) = dsce.getAccountInformation(USER);
+        uint256 expectedUsd = 20000e18; // 10 ETH * $2000
+        assertEq(collateralValueInUsd, expectedUsd);
+    }
+
+    // (7) Health factor cannot drop below 1 after burning DSC
+    function testHealthFactorRemainsSafeAfterBurn() public depositedCollateral {
+        vm.startPrank(USER);
+        dsce.mintDsc(9000e18);
+        dsc.approve(address(dsce), 4000e18);
+        dsce.burnDsc(4000e18);
+        uint256 health = dsce.getHealthFactor();
+        assertGe(health, 1e18);
+        vm.stopPrank();
+    }
+
+    // (8) Withdraw reduces collateral and affects health factor
+    function testRedeemCollateralReducesHealthFactor() public depositedCollateral {
+        vm.startPrank(USER);
+        dsce.mintDsc(5000e18);
+        uint256 beforeHealth = dsce.getHealthFactor();
+        dsce.redeemCollateral(weth, 5 ether);
+        uint256 afterHealth = dsce.getHealthFactor();
+        assertLt(afterHealth, beforeHealth);
+        vm.stopPrank();
+    }
+
+    // (9) Burning DSC increases health factor
+    function testBurnImprovesHealthFactor() public depositedCollateral {
+        vm.startPrank(USER);
+        dsce.mintDsc(8000e18);
+        uint256 beforeHealth = dsce.getHealthFactor();
+        dsc.approve(address(dsce), 4000e18);
+        dsce.burnDsc(4000e18);
+        uint256 afterHealth = dsce.getHealthFactor();
+        assertGt(afterHealth, beforeHealth);
+        vm.stopPrank();
+    }
+
+    // (10) Can handle multiple deposits correctly
+    // function testMultipleDepositsAccumulate() public {
+    //     vm.startPrank(USER);
+    //     ERC20Mock(weth).approve(address(dsce), 20 ether);
+    //     dsce.depositCollateral(weth, 10 ether);
+    //     dsce.depositCollateral(weth, 10 ether);
+    //     vm.stopPrank();
+
+    //     ( , uint256 collateralValueInUsd) = dsce.getAccountInformation(USER);
+    //     uint256 expectedUsd = 40000e18; // 20 ETH * $2000
+    //     assertEq(collateralValueInUsd, expectedUsd);
+    // }
+
+     // -------------------------------------------------------------
+    // getUsdValue & getTokenAmountFromUsd
+    // -------------------------------------------------------------
+    function testGetUsdValueWorks() public view {
+        // 1 WETH @ $2000 => 2000 * 1e18 = 2000e18
+        uint256 usdValue = dsce.getUsdValue(address(weth), 1e18);
+        assertEq(usdValue, 2000e18);
+    }
+
+    function testGetTokenAmountFromUsdIsInverseOfGetUsdValue() public view {
+        uint256 usdValue = 1000e18;
+        uint256 tokenAmount = dsce.getTokenAmountFromUsd(address(weth), usdValue);
+        // $1000 @ $2000/ETH => 0.5 ETH
+        assertApproxEqAbs(tokenAmount, 0.5e18, 1);
+    }
+
+    // -------------------------------------------------------------
+    // Health Factor Logic
+    // -------------------------------------------------------------
+    function testHealthFactorIsMaxWhenNoDebt() public view {
+        uint256 health = dsce.getHealthFactor();
+        assertEq(health, type(uint256).max);
+    }
+
+    function testHealthFactorDropsAsDebtIncreases() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+
+        // Mint small DSC (healthy)
+        dsce.mintDsc(1000e18);
+        uint256 health1 = dsce.getHealthFactor();
+
+        // Mint more DSC (riskier)
+        dsce.mintDsc(5000e18);
+        uint256 health2 = dsce.getHealthFactor();
+
+        assertLt(health2, health1);
+        vm.stopPrank();
+    }
+
+    // -------------------------------------------------------------
+    // Redeem Collateral and Burn Logic
+    // -------------------------------------------------------------
+    function testRedeemCollateralRevertsIfHealthFactorBreaks() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+        dsce.mintDsc(4000e18);
+        vm.expectRevert(DSCEngine.DSCEngine__BreaksHealthFactor.selector, 0);
+        dsce.redeemCollateral(address(weth), 9e18); // too much withdrawal
+        vm.stopPrank();
+    }
+
+    // function testBurnDscReducesDebt() public {
+    //     vm.startPrank(USER);
+    //     weth.approve(address(dsce), AMOUNT_COLLATERAL);
+    //     dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+    //     dsce.mintDsc(2000e18);
+
+    //     uint256 before = dsce.getHealthFactor();
+    //     dsc.approve(address(dsce), 2000e18);
+    //     dsce.burnDsc(500e18);
+    //     uint256 afterHealth = dsce.getHealthFactor();
+    //     assertGt(afterHealth, before);
+    //     vm.stopPrank();
+    // }
+
+    // -------------------------------------------------------------
+    // Liquidation Logic
+    // -------------------------------------------------------------
+    function testCannotLiquidateHealthyUser() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+        dsce.mintDsc(1000e18);
+        vm.stopPrank();
+
+        vm.expectRevert(DSCEngine.DSCEngine__HealthFactorOk.selector);
+        dsce.liquidate(address(weth), USER, 100e18);
+    }
+
+    // function testLiquidationImprovesHealthFactor() public {
+    //     vm.startPrank(USER);
+    //     ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+    //     dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+    //     dsce.mintDsc(9000e18);
+    //     vm.stopPrank();
+
+    //     // Drop ETH price drastically to break health factor
+    //     MockV3Aggregator(ethUsdPriceFeed).updateAnswer(500e8); // $500
+
+    //     vm.startPrank(address(dsce));
+    //     dsc.mint(LIQUIDATOR, 1000e18);
+    //     vm.stopPrank();
+
+    //     vm.startPrank(LIQUIDATOR);
+    //     dsc.approve(address(dsce), type(uint256).max);
+    //     dsce.liquidate(address(weth), USER, 1000e18);
+    //     vm.stopPrank();
+    // }
+
+    // -------------------------------------------------------------
+    // depositCollateralAndMintDsc
+    // -------------------------------------------------------------
+    function testDepositAndMintTogetherWorks() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateralAndMintDsc(address(weth), AMOUNT_COLLATERAL, 1000e18);
+        uint256 health = dsce.getHealthFactor();
+        assertGt(health, 1e18);
+        vm.stopPrank();
+    }
+
+    // -------------------------------------------------------------
+    // getAccountInformation
+    // -------------------------------------------------------------
+    function testGetAccountInformationMatchesInternalState() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(address(weth), AMOUNT_COLLATERAL);
+        dsce.mintDsc(2000e18);
+        vm.stopPrank();
+
+        (uint256 minted, uint256 collateralUsd) = dsce.getAccountInformation(USER);
+        assertEq(minted, 2000e18);
+        assertEq(collateralUsd, 20000e18); // 10 ETH * $2000 = $20,000
+    }
 }
