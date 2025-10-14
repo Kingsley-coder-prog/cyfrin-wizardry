@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
-/*
+/**
 * @title RebaseToken
 * @author Ifeanyi Nwankwo
 * @notice This is a cross-chain rebase token that incentivises users to deposit into a vault
@@ -29,7 +29,7 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
         _grantRole(MINT_AND_BURN_ROLE, _account);
     }
 
-    /*
+    /**
     * @notice Set the interest rate in the contract
     * @param _newInterestRate The new interest rate to set
     * @dev The interest rate can only decrease
