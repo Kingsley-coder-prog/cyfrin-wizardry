@@ -36,6 +36,16 @@ contract RebaseToken is ERC20 {
     }
 
     /**
+     * @notice Get the principle balance of the user (the number of tokens that have actually been minted to the user, not including interest that has accrued since the last time the user interacted with the protocol)
+     * @param _user The user to get the principle balance for
+     * @return The principle balance of the user
+     * 
+     */
+    function principleBalanceOf(address _user) external view returns (uint256) {
+        return super.balanceOf(_user);
+    }
+
+    /**
      * @notice Mint the user tokens when they deposit into the vault
      * @param _to The user to mint the token to
      * @param _amount amount of token to mint
@@ -73,6 +83,49 @@ contract RebaseToken is ERC20 {
     }
 
     /**
+     * @notice Transfer tokens from one user to another
+     * @param _recipient The recipient of the transfer
+     * @param _amount The amount to transfer
+     * @return A boolean value indicating whether the operation succeeded.
+     * 
+     * @notice When transferring tokens, we need to mint any interest that has accumulated for both the sender and the recipient
+     * @notice If the recipient has no tokens, we need to set their interest rate to the sender's interest rate
+     */
+    function transfer(address _recipient, uint256 _amount) public override returns (bool) {
+        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_recipient);
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(msg.sender);
+        }
+        if (balanceOf(_recipient) == 0) {
+            s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
+        }
+        return super.transfer(_recipient, _amount);
+    }
+
+    /**
+     * @notice Transfer tokens from one user to another
+     * @param _sender The sender of the transfer
+     * @param _recipient The recipient of the transfer
+     * @param _amount The amount to transfer
+     * @return A boolean value indicating whether the operation succeeded.
+     * 
+     * @notice When transferring tokens, we need to mint any interest that has accumulated for both the sender and the recipient
+     * @notice If the recipient has no tokens, we need to set their interest rate to the sender's interest rate
+     */
+    function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
+        _mintAccruedInterest(_sender);
+        _mintAccruedInterest(_recipient);
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_sender);
+        }
+        if (balanceOf(_recipient) == 0) {
+            s_userInterestRate[_recipient] = s_userInterestRate[_sender];
+        }
+        return super.transferFrom(_sender, _recipient, _amount);
+    }
+
+    /**
      * @notice Calculate the interest that has accumulated since the last update
      * @param _user The user to calculate the interest accumulated for
      * @return linearInterest The interest that has accumulated since the last update
@@ -103,6 +156,14 @@ contract RebaseToken is ERC20 {
         // set the users last updated timestamp
         s_userLastUpdatedTimestamp[_user] = block.timestamp;
         _mint(_user, balanceIncrease);
+    }
+
+    /**
+     * @notice Get the interest rate that is currently set for the contract. Any future depositirs will receive this interest rate
+     * @return The interest rate for the contract
+     */
+    function getInterestRate() external view returns (uint256) {
+        return s_interestRate;
     }
 
     /*
