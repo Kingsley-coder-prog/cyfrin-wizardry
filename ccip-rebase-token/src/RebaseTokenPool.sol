@@ -8,7 +8,7 @@ import {IERC20} from "@ccip/contracts/src/v0.8/vendor/openzeppelin-solidity/v4.8
 // import {IRebaseToken} from "@ccip/contracts/src/v0.8/ccip/interfaces/IRebaseToken.sol";
 import {IRebaseToken} from "./interfaces/IRebaseToken.sol";
 
-contract RebaseToken is TokenPool {
+contract RebaseTokenPool is TokenPool {
     constructor(IERC20 _token, address[] memory _allowlist, address _rmnProxy, address _router) TokenPool(_token, 18, _allowlist, _rmnProxy, _router) {}
 
     function lockOrBurn(Pool.LockOrBurnInV1 calldata lockOrBurnIn) external returns (Pool.LockOrBurnOutV1 memory lockOrBurnOut) {
