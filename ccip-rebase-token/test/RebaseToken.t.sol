@@ -156,7 +156,7 @@ contract RebaseTokenTest is Test {
         assertEq(rebaseToken.principleBalanceOf(user), amount);
     }
 
-    function testGetRebaseTokenAddress() public {
+    function testGetRebaseTokenAddress() public view {
         assertEq(vault.getRebaseTokenAddress(), address(rebaseToken));
     }
 
