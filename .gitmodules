@@ -57,3 +57,8 @@
 [submodule "ccip-rebase-token/lib/chainlink-local"]
 	path = ccip-rebase-token/lib/chainlink-local
 	url = https://github.com/smartcontractkit/chainlink-local
+[submodule "foundry-upgrades/lib/forge-std"]
+	path = foundry-upgrades/lib/forge-std
+[submodule "foundry-upgrades/lib/openzeppelin-contracts-upgradeable"]
+	path = foundry-upgrades/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/openzeppelin/openzeppelin-contracts-upgradeable
