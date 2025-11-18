@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.18;
 
-import {UUPSUpgradeable} "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 
 contract BoxV2 is  UUPSUpgradeable {
