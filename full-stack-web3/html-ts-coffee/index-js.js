@@ -5,7 +5,7 @@ import {
   parseEther,
   defineChain,
 } from "https://esm.sh/viem";
-import { contractAddress, coffeeAbi } from "./constant-js";
+import { contractAddress, coffeeAbi } from "./constant-js.js";
 
 const clickConnectButton = document.getElementById("connectButton");
 const fundButton = document.getElementById("fundButton");
@@ -39,7 +39,7 @@ async function fund() {
     publicClient = createPublicClient({
       transport: custom(window.ethereum),
     });
-    await publicClient.simulateContract({
+    const { request } = await publicClient.simulateContract({
       address: contractAddress,
       abi: coffeeAbi,
       functionName: "fund",
@@ -47,6 +47,9 @@ async function fund() {
       chain: currentChain,
       value: parseEther(ethAmount),
     });
+
+    const hash = await walletClient.writeContract(request);
+    console.log(hash);
   } else {
     clickConnectButton.innerHTML = "Please install Metamask";
   }
