@@ -21,6 +21,7 @@ async function connect() {
     publicClient = createPublicClient({
       transport: custom(window.ethereum),
     });
+    await publicClient.simulateContract({});
   } else {
     clickConnectButton.innerHTML = "Please install Metamask";
   }
