@@ -1,0 +1,1 @@
+let myNum: number = 1
