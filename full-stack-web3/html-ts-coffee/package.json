@@ -12,5 +12,9 @@
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "viem": "^2.41.2",
+    "vite": "^7.2.6"
   }
 }
