@@ -8,6 +8,7 @@ import {
 } from "https://esm.sh/viem";
 import { contractAddress, coffeeAbi } from "./constant-js.js";
 
+// connect with HTML
 const clickConnectButton = document.getElementById("connectButton");
 const fundButton = document.getElementById("fundButton");
 const ethAmountInput = document.getElementById("ethAmount");
