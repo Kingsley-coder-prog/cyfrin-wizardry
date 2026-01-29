@@ -5,6 +5,7 @@ import {useState, useMemo} from "react"
 import { chainsToTSender, tsenderAbi, erc20Abi} from "@/constants"
 import {useChainId, useConfig, useConnection} from 'wagmi'
 import { readContract } from "@wagmi/core"
+import { calculateTotal } from "@/utils"
 
 export default function AirdropForm() {
     const [tokenAddress, setTokenAddress] = useState("")
@@ -13,7 +14,7 @@ export default function AirdropForm() {
     const chainId = useChainId()
     const config = useConfig()
     const account = useConnection()
-    const total: number = useMemo(()=> calculateTotal(amounts), [amounts])
+    useMemo(()=> console.log(calculateTotal(amounts)), [amounts])
 
 
     async function getApprovedAmount(tSenderAddress: string | null): Promise<number> {
