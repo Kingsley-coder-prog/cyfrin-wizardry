@@ -3,7 +3,7 @@
 import InputField from "@/components/ui/InputField"
 import {useState, useMemo} from "react"
 import { chainsToTSender, tsenderAbi, erc20Abi} from "@/constants"
-import {useChainId, useConfig, useConnection} from 'wagmi'
+import {useChainId, useConfig, useConnection, useWriteContract} from 'wagmi'
 import { readContract } from "@wagmi/core"
 import { calculateTotal } from "@/utils"
 
@@ -14,8 +14,8 @@ export default function AirdropForm() {
     const chainId = useChainId()
     const config = useConfig()
     const account = useConnection()
-    useMemo(()=> console.log(calculateTotal(amounts)), [amounts])
-
+    const total: number = useMemo(()=> calculateTotal(amounts), [amounts])
+    const { data: hash, isPending, mutateAsync } = useWriteContract()
 
     async function getApprovedAmount(tSenderAddress: string | null): Promise<number> {
         if (!tSenderAddress) {
@@ -34,7 +34,15 @@ export default function AirdropForm() {
     async function handleSubmit() {
         const tSenderAddress = chainsToTSender[chainId]["tsender"]
         const approvedAmount = await getApprovedAmount(tSenderAddress)
-        console.log(approvedAmount)
+
+        if (approvedAmount < total) {
+            const approvalHash = await mutateAsync({
+                abi: erc20Abi,
+                address: tokenAddress as `0x${string}`,
+                functionName: "approve",
+                args: [tSenderAddress as `0x${string}`, total]
+            })
+        }
     }
 
     return (
