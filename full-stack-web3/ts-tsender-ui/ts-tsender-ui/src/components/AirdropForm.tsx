@@ -30,7 +30,7 @@ export default function AirdropForm() {
         })
         return response as number
     }
-    // get approvedAmmount function
+    // get approvedAmmount function with some variables
 
     async function handleSubmit() {
         const tSenderAddress = chainsToTSender[chainId]["tsender"]
